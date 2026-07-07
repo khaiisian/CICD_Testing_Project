@@ -13,7 +13,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Domain\Features\Item\" />
+	  <ProjectReference Include="..\CICD_Testing_Project.Database\CICD_Testing_Project.Database.csproj" />
 	</ItemGroup>
 
 </Project>
