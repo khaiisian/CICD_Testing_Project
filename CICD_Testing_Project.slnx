@@ -1,7 +1,6 @@
 <Solution>
-  <Folder Name="/.github/" />
-  <Folder Name="/.github/workflows/">
-    <File Path="ci.yml" />
+  <Folder Name="/Solution Items/">
+    <File Path=".github/workflows/ci.yml" />
   </Folder>
   <Project Path="CICD_Testing_Project.Api/CICD_Testing_Project.Api.csproj" />
   <Project Path="CICD_Testing_Project.Database/CICD_Testing_Project.Database.csproj" Id="06532778-811b-4e5b-8269-d261d5267683" />
