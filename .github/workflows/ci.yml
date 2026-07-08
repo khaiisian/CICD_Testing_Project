@@ -1,21 +1,54 @@
-name: CI                       # "This pipeline is called CI."
+name: CI
 
-on:                            # "Wake up WHEN..."
-  push:                        #   "...code is pushed,"
-  pull_request:                #   "...or a PR is opened."
+on:
+  push:
+  pull_request:
 
-jobs:                          # "Here's the work:"
-  build-and-test:              #   "A job called build-and-test."
-    runs-on: ubuntu-latest     #   "Run it on a clean Linux machine."
-    steps:                     #   "Do these, in order:"
-      - uses: actions/checkout@v4              # 1. Copy my code onto the machine.
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
 
-      - uses: actions/setup-dotnet@v4          # 2. Install .NET 10.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - run: dotnet restore                    # 3. Get NuGet packages.
+      # Cache downloaded NuGet packages so future runs are faster.
+      # The key changes only when a .csproj changes, otherwise the cache is reused.
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
-      - run: dotnet build --no-restore --configuration Release          # 4. Compile.
+      - name: Restore dependencies
+        run: dotnet restore
 
-      - run: dotnet test --no-build --configuration Release --verbosity normal   # 5. Run tests.
+      # Fail the build if any NuGet package (direct or transitive) has a known vulnerability.
+      - name: Security scan
+        run: |
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee vuln.txt
+          if grep -q "following vulnerable" vuln.txt; then
+            echo "::error::Vulnerable NuGet packages detected — see the log above."
+            exit 1
+          fi
+          echo "No vulnerable packages found."
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test (with code coverage)
+        run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
+
+      # Save the coverage report so you can download it from the run's "Artifacts" section.
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage
+          path: '**/coverage.cobertura.xml'
