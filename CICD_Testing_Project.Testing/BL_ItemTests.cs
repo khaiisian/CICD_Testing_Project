@@ -23,4 +23,21 @@ public class BL_ItemTests
         Assert.NotNull(result);
         Assert.Equal("Test Item", result!.Name);
     }
+
+    [Fact]
+    public async Task GetById_NotFound()
+    {
+        //Arrange
+        var mockDA = new Mock<IDA_Item>();
+        mockDA.Setup(x=>x.GetById(-1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ItemResponseModel?)null);
+
+        var bl = new BL_Item(mockDA.Object);
+
+        //Act
+        var result = await bl.GetById(-1, CancellationToken.None);
+
+        // Assert
+        Assert.Null(result);
+    }
 }
