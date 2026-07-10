@@ -21,7 +21,7 @@ public class BL_ItemTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("Test Item", result!.Name);
+        Assert.Equal("hjkhklh Item", result!.Name);
     }
 
     [Fact]
