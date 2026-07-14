@@ -8,6 +8,8 @@ namespace CICD_Testing_Project.Api.Domain.Features.Item
 
         Task<ItemResponseModel?> GetById(int id, CancellationToken ct);
 
+        Task<ItemResponseModel> Create(ItemRequestModel requestModel, CancellationToken ct);
+
         Task<ItemResponseModel?> Update(int id, ItemRequestModel requestModel, CancellationToken ct);
 
         Task<ItemResponseModel?> Patch(int id, ItemPatchModel patchModel, CancellationToken ct);

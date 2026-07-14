@@ -23,6 +23,12 @@ public class BL_Item : IBL_Item
         return item;
     }
 
+    public async Task<ItemResponseModel> Create(ItemRequestModel requestModel, CancellationToken ct)
+    {
+        var item = await _daItem.Create(requestModel, ct);
+        return item;
+    }
+
     public async Task<ItemResponseModel?> Update(int id, ItemRequestModel requestModel, CancellationToken ct)
     {
         var item = await _daItem.Update(id, requestModel, ct);

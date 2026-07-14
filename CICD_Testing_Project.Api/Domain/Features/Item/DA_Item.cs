@@ -39,6 +39,27 @@ public class DA_Item : IDA_Item
         return item;
     }
 
+    public async Task<ItemResponseModel> Create(ItemRequestModel requestModel, CancellationToken ct)
+    {
+        var item = new TblItem
+        {
+            Name = requestModel.Name,
+            Qty = requestModel.Qty,
+            Price = requestModel.Price,
+        };
+
+        await _dbContext.TblItems.AddAsync(item, ct);
+        await _dbContext.SaveChangesAsync(ct);
+
+        return new ItemResponseModel
+        {
+            Id = item.Id,
+            Name = item.Name,
+            Price = item.Price,
+            Qty = item.Qty,
+        };
+    }
+
     public async Task<ItemResponseModel?> Update(int id, ItemRequestModel requestModel, CancellationToken ct)
     {
         var item = await _dbContext.TblItems.FirstOrDefaultAsync(x => x.Id == id, ct);

@@ -33,6 +33,13 @@ public class ItemController : ControllerBase
         return Ok(item);
     }
 
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] ItemRequestModel requestModel, CancellationToken ct)
+    {
+        var item = await _blItem.Create(requestModel, ct);
+        return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
+    }
+
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] ItemRequestModel requestModel, CancellationToken ct)
     {
