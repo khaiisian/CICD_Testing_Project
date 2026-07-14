@@ -14,7 +14,7 @@ CICD_Testing_Project.Database/   ← EF Core entities / DbContext
 CICD_Testing_Project.Testing/    ← xUnit unit tests (Moq)
 ```
 
-The `Item` feature demonstrates full CRUD (`GetAll`, `GetById`, `Update`, `Patch`, `Delete`)
+The `Item` feature demonstrates full CRUD (`Create`, `GetAll`, `GetById`, `Update`, `Patch`, `Delete`)
 split across layers behind interfaces:
 
 ```
@@ -174,3 +174,89 @@ docker run -p 8080:8080 -e ASPNETCORE_ENVIRONMENT=Development cicd-testing-api
 ```
 
 Everyday loop: **create Dockerfile once → build when code changes → run to start it.**
+
+---
+
+# 🐳🐳 Docker Compose — Study Notes
+
+Where Docker runs **one** container, Compose runs **many together** with one command.
+I used it to run my API **and** a SQL Server side by side so `/api/Item` returns real data.
+
+## Why Compose (and not just `docker run`)?
+
+`docker build`/`docker run` handle **one** container by hand. I needed **two** (API + database)
+that start together, share a network, and talk to each other. Doing that manually = a pile of
+commands (create network, run db, build api, run api on the same network...). Compose does all
+of it from **one file + one command**.
+
+> `docker build/run` = one container by hand. **Compose = many containers together, automatically** — using the same Dockerfile I already wrote.
+
+## The `compose.yaml`, line-by-line (why each part exists)
+
+```yaml
+services:                                    # the list of containers to run
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest   # run SQL Server without installing it
+    environment:
+      ACCEPT_EULA: "Y"                       # SQL Server won't start without accepting the licence
+      MSSQL_SA_PASSWORD: "Str0ng_Passw0rd!"  # 'sa' password — MUST be strong or the container won't start
+    ports:
+      - "1433:1433"                          # so I can connect with SSMS to create the table
+
+  api:
+    build:
+      context: .                                        # build using the whole solution folder
+      dockerfile: CICD_Testing_Project.Api/Dockerfile   # my API must be built from my Dockerfile
+    ports:
+      - "8080:8080"                          # so I can open the API at localhost:8080
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"  # containers default to Production; this turns Swagger on
+      # THE line that fixed the 500 — point the API at the 'db' container instead of my PC:
+      ConnectionStrings__DefaultConnection: "Server=db;Database=Workspace;User ID=sa;Password=Str0ng_Passw0rd!;TrustServerCertificate=True;"
+    depends_on:
+      - db                                   # start the database before the API
+```
+
+**The magic line:** `ConnectionStrings__DefaultConnection` with `Server=db`. Compose puts both
+containers on a shared network where each is reachable **by its service name**, so the API finds
+the database at `db` — no IP, no PC name. (.NET reads the `__` env var and it overrides the
+`DefaultConnection` in `appsettings.json`, so I didn't edit the file.)
+
+## The two database errors I hit (and what each taught me)
+
+| Error | What it really meant | Lesson |
+|-------|----------------------|--------|
+| *"SQL Server not found"* (500) | Couldn't **connect** to a database | Container networking — fixed by `Server=db` |
+| *"Invalid object name 'Tbl_Item'"* | Connected, but the **table didn't exist** | A fresh DB container starts **empty** — I must create the schema |
+
+Reading *which* error I got told me *which* problem to fix: first couldn't reach SQL Server,
+then reached it but the table was missing. (The real table name is `Tbl_Item` — the entity maps
+to it via `entity.ToTable("Tbl_Item")`.)
+
+## The commands
+
+```bash
+docker compose up --build   # build the API image + start BOTH containers together
+docker compose down         # stop and remove both containers
+```
+
+If I delete the images/containers, `docker compose up --build` recreates everything automatically
+(rebuilds my API, re-downloads SQL Server). **But** without a **volume**, the database data is
+wiped when the SQL container is deleted — so I'd re-run the CREATE TABLE script. A volume
+(`volumes: - sqldata:/var/opt/mssql`) makes the data survive.
+
+## Bonus lesson — Swagger UI and OpenAPI 3.0 vs 3.1
+
+The `GET /api/Item/{id}` box in Swagger kept saying *"Required field is not provided"* even with a
+value typed. **Not my code** — a tooling mismatch:
+
+- .NET 10's built-in `AddOpenApi()` generates **OpenAPI 3.1**, where an `int` path param becomes
+  `type: ["integer","string"]` (a multi-type array).
+- **Swagger UI doesn't fully support OpenAPI 3.1 yet**, so it mis-validates that and falsely rejects input.
+
+Calling the endpoint directly (`curl http://localhost:8080/api/Item/1`) returned `200 OK` — proving
+the API was fine. Fix: use **Swashbuckle's `AddSwaggerGen()` + `UseSwagger()` + `UseSwaggerUI()`**,
+which serves an **OpenAPI 3.0** doc (single-type `integer`) that Swagger UI validates correctly.
+
+> Lesson: same packages, different **wiring** → different behaviour. Point Swagger UI at the 3.0
+> doc and `{id}` works.
