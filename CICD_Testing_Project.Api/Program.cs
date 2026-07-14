@@ -9,6 +9,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+// Swashbuckle's generator produces an OpenAPI 3.0 doc that Swagger UI validates correctly
+// (so {id} path parameters work in the UI).
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
 {
@@ -23,11 +26,9 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();                          
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/openapi/v1.json", "CICD Testing API v1");
-    });
+    app.MapOpenApi();
+    app.UseSwagger();        // Swashbuckle serves /swagger/v1/swagger.json (OpenAPI 3.0)
+    app.UseSwaggerUI();      // Swagger UI reads that 3.0 doc by default
 }
 
 app.UseHttpsRedirection();
