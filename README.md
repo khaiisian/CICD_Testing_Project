@@ -244,19 +244,3 @@ If I delete the images/containers, `docker compose up --build` recreates everyth
 (rebuilds my API, re-downloads SQL Server). **But** without a **volume**, the database data is
 wiped when the SQL container is deleted — so I'd re-run the CREATE TABLE script. A volume
 (`volumes: - sqldata:/var/opt/mssql`) makes the data survive.
-
-## Bonus lesson — Swagger UI and OpenAPI 3.0 vs 3.1
-
-The `GET /api/Item/{id}` box in Swagger kept saying *"Required field is not provided"* even with a
-value typed. **Not my code** — a tooling mismatch:
-
-- .NET 10's built-in `AddOpenApi()` generates **OpenAPI 3.1**, where an `int` path param becomes
-  `type: ["integer","string"]` (a multi-type array).
-- **Swagger UI doesn't fully support OpenAPI 3.1 yet**, so it mis-validates that and falsely rejects input.
-
-Calling the endpoint directly (`curl http://localhost:8080/api/Item/1`) returned `200 OK` — proving
-the API was fine. Fix: use **Swashbuckle's `AddSwaggerGen()` + `UseSwagger()` + `UseSwaggerUI()`**,
-which serves an **OpenAPI 3.0** doc (single-type `integer`) that Swagger UI validates correctly.
-
-> Lesson: same packages, different **wiring** → different behaviour. Point Swagger UI at the 3.0
-> doc and `{id}` works.
